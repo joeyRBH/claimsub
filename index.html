@@ -344,7 +344,7 @@
           <label>Password</label>
           <input type="password" id="login-password" placeholder="Enter password" autocomplete="current-password">
         </div>
-        <button type="button" class="login-btn" onclick="handleLogin(event)">Sign In</button>
+        <button type="button" class="login-btn" onclick="doLogin()">Sign In</button>
       </form>
       <p style="margin-top: 24px; font-size: 13px; color: #9CA3AF;">
         <a href="#" onclick="showLandingPage(); return false;" style="color: #3B82F6; text-decoration: none;">← Back to home</a>
@@ -497,11 +497,12 @@
       return sessionStorage.getItem('claimsub-auth') === 'true';
     }
 
-    function handleLogin(event) {
-      if (event) event.preventDefault();
+    function doLogin() {
       const username = document.getElementById('login-username').value.trim();
       const password = document.getElementById('login-password').value;
       const errorEl = document.getElementById('login-error');
+
+      console.log('Login attempt:', username, password === VALID_PASSWORD);
 
       if (username === VALID_USERNAME && password === VALID_PASSWORD) {
         sessionStorage.setItem('claimsub-auth', 'true');
@@ -510,6 +511,11 @@
       } else {
         errorEl.classList.add('show');
       }
+    }
+
+    function handleLogin(event) {
+      if (event) event.preventDefault();
+      doLogin();
       return false;
     }
 
