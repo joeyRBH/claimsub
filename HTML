@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claims Submission Hub</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #F3F4F6; min-height: 100vh; }
+    .header { background: #1F2937; color: white; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
+    .header h1 { font-size: 18px; font-weight: 600; }
+    .nav { display: flex; gap: 8px; }
+    .nav button { padding: 8px 16px; background: transparent; border: none; border-radius: 6px; color: white; cursor: pointer; font-size: 14px; }
+    .nav button.active { background: #3B82F6; }
+    .container { padding: 24px; max-width: 1200px; margin: 0 auto; }
+    .card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 24px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .stat-card .number { font-size: 32px; font-weight: 700; }
+    .stat-card .label { color: #6B7280; font-size: 14px; }
+    .payer-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .payer-card { padding: 16px; border-radius: 8px; cursor: pointer; transition: all 0.15s; }
+    .payer-card h3 { font-weight: 600; margin-bottom: 4px; }
+    .payer-card .count { font-size: 24px; font-weight: 700; }
+    .payer-card .portal-btn { display: inline-block; margin-top: 8px; padding: 6px 12px; color: white; border-radius: 4px; font-size: 12px; text-decoration: none; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th { text-align: left; padding: 10px 8px; color: #6B7280; font-weight: 500; border-bottom: 2px solid #E5E7EB; }
+    td { padding: 12px 8px; border-bottom: 1px solid #E5E7EB; }
+    tr.clickable { cursor: pointer; }
+    tr.clickable:hover { background: #F9FAFB; }
+    .status-badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; }
+    .form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .form-group label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; }
+    .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 14px; }
+    .btn { padding: 12px 24px; border: none; border-radius: 6px; font-weight: 500; cursor: pointer; font-size: 14px; }
+    .btn-primary { background: #2563EB; color: white; }
+    .btn-primary:disabled { background: #D1D5DB; cursor: not-allowed; }
+    .btn-secondary { background: #F3F4F6; color: #374151; }
+    .btn-danger { background: #FEE2E2; color: #DC2626; }
+    .copy-field { padding: 10px 14px; background: #F9FAFB; border-radius: 6px; cursor: pointer; border: 1px solid #E5E7EB; transition: all 0.15s; margin-bottom: 8px; }
+    .copy-field:hover { background: #F3F4F6; }
+    .copy-field.copied { background: #D1FAE5; }
+    .copy-field .label { font-size: 11px; color: #6B7280; margin-bottom: 2px; }
+    .copy-field .value { font-size: 14px; font-weight: 500; }
+    .copy-field .hint { margin-left: 8px; font-size: 11px; color: #9CA3AF; }
+    .copy-field.copied .hint { color: #059669; }
+    .detail-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .status-buttons { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
+    .status-btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 13px; }
+    .back-btn { background: none; border: none; color: #6B7280; cursor: pointer; margin-bottom: 8px; }
+    .hidden { display: none; }
+    .empty-state { text-align: center; padding: 40px; color: #6B7280; }
+    .empty-state a { color: #2563EB; cursor: pointer; text-decoration: underline; }
+    .report-section { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
+    .bar-row { display: flex; align-items: center; margin-bottom: 8px; }
+    .bar-label { width: 120px; font-size: 13px; font-weight: 500; }
+    .bar-track { flex: 1; height: 24px; background: #F3F4F6; border-radius: 4px; overflow: hidden; }
+    .bar-fill { height: 100%; transition: width 0.3s; }
+    .bar-count { width: 40px; text-align: right; font-size: 14px; font-weight: 500; }
+    .quick-stats { margin-top: 32px; padding: 20px; background: #F9FAFB; border-radius: 8px; }
+    .quick-stats h3 { font-size: 14px; margin-bottom: 12px; }
+    .quick-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; font-size: 13px; }
+    .quick-stats-grid .qs-label { color: #6B7280; }
+    .quick-stats-grid .qs-value { font-size: 20px; font-weight: 600; }
+    @media (max-width: 768px) {
+      .stats-grid, .payer-grid, .form-grid, .detail-grid, .report-section, .quick-stats-grid { grid-template-columns: 1fr; }
+      .bar-label { width: 80px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🏥 Claims Submission Hub</h1>
+    <div class="nav">
+      <button class="active" onclick="showView('dashboard')">Dashboard</button>
+      <button onclick="showView('new')">+ New Claim</button>
+      <button onclick="showView('reports')">Reports</button>
+    </div>
+  </div>
+  <div class="container">
+    <div id="dashboard-view"></div>
+    <div id="new-view" class="hidden"></div>
+    <div id="detail-view" class="hidden"></div>
+    <div id="reports-view" class="hidden"></div>
+  </div>
+
+  <script>
+    const PAYERS = {
+      medicaid: { name: 'Colorado Medicaid', color: '#059669', portal: 'https://colorado-hcp-portal.xco.dcs-usps.com/', filing: 90 },
+      aetna: { name: 'Aetna', color: '#7C3AED', portal: 'https://www.availity.com/', filing: 180 },
+      cigna: { name: 'Cigna', color: '#0284C7', portal: 'https://cignaforhcp.cigna.com/', filing: 180 },
+      ubh: { name: 'UBH / Optum', color: '#EA580C', portal: 'https://www.providerexpress.com/', filing: 180 }
+    };
+    const STATUS_COLORS = { draft: '#6B7280', ready: '#2563EB', submitted: '#7C3AED', pending: '#D97706', paid: '#059669', denied: '#DC2626' };
+    const CPT_CODES = ['90834', '90837', '90847', '90853', '90791', '90792', '96130', '96131', '96136', '96137'];
+    const MODIFIERS = [
+      { code: '', label: 'None' },
+      { code: '95', label: '95 - Synchronous Telehealth' },
+      { code: 'GT', label: 'GT - Interactive Telehealth' },
+      { code: 'HO', label: 'HO - Masters Level Clinician' },
+      { code: 'HN', label: 'HN - Bachelors Level Clinician' },
+      { code: 'AJ', label: 'AJ - Clinical Social Worker' },
+      { code: 'AH', label: 'AH - Clinical Psychologist' },
+      { code: 'U1', label: 'U1 - Medicaid Level 1' },
+      { code: 'U2', label: 'U2 - Medicaid Level 2' },
+      { code: 'U3', label: 'U3 - Medicaid Level 3' },
+      { code: 'U4', label: 'U4 - Medicaid Level 4' },
+      { code: 'U5', label: 'U5 - Medicaid Level 5' },
+      { code: 'FQ', label: 'FQ - Telehealth in Patient Home' },
+      { code: '59', label: '59 - Distinct Procedural Service' },
+      { code: '76', label: '76 - Repeat Procedure Same Physician' },
+      { code: '25', label: '25 - Significant E/M' }
+    ];
+
+    let claims = [];
+    let currentView = 'dashboard';
+    let selectedPayer = null;
+    let selectedClaim = null;
+
+    function loadClaims() {
+      const saved = localStorage.getItem('claims-hub-data');
+      if (saved) claims = JSON.parse(saved);
+    }
+
+    function saveClaims() {
+      localStorage.setItem('claims-hub-data', JSON.stringify(claims));
+    }
+
+    function getDaysUntilDeadline(claim) {
+      const serviceDate = new Date(claim.serviceDate);
+      const deadline = new Date(serviceDate);
+      deadline.setDate(deadline.getDate() + PAYERS[claim.payer].filing);
+      const today = new Date();
+      return Math.ceil((deadline - today) / (1000 * 60 * 60 * 24));
+    }
+
+    function getStats() {
+      const stats = { total: claims.length, byStatus: {}, byPayer: {}, urgent: 0 };
+      Object.keys(STATUS_COLORS).forEach(s => stats.byStatus[s] = 0);
+      Object.keys(PAYERS).forEach(p => stats.byPayer[p] = 0);
+      claims.forEach(c => {
+        stats.byStatus[c.status]++;
+        stats.byPayer[c.payer]++;
+        if (['draft', 'ready'].includes(c.status) && getDaysUntilDeadline(c) <= 14) stats.urgent++;
+      });
+      return stats;
+    }
+
+    function showView(view) {
+      currentView = view;
+      selectedClaim = null;
+      document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.nav button').forEach(b => { if (b.textContent.toLowerCase().includes(view) || (view === 'new' && b.textContent.includes('New'))) b.classList.add('active'); });
+      document.getElementById('dashboard-view').classList.toggle('hidden', view !== 'dashboard');
+      document.getElementById('new-view').classList.toggle('hidden', view !== 'new');
+      document.getElementById('detail-view').classList.add('hidden');
+      document.getElementById('reports-view').classList.toggle('hidden', view !== 'reports');
+      if (view === 'dashboard') renderDashboard();
+      if (view === 'new') renderNewForm();
+      if (view === 'reports') renderReports();
+    }
+
+    function renderDashboard() {
+      const stats = getStats();
+      const filtered = selectedPayer ? claims.filter(c => c.payer === selectedPayer) : claims;
+      const sorted = [...filtered].sort((a, b) => getDaysUntilDeadline(a) - getDaysUntilDeadline(b));
+
+      let html = `
+        <div class="stats-grid">
+          <div class="stat-card"><div class="number">${stats.total}</div><div class="label">Total Claims</div></div>
+          <div class="stat-card"><div class="number" style="color:#2563EB">${stats.byStatus.ready}</div><div class="label">Ready to Submit</div></div>
+          <div class="stat-card"><div class="number" style="color:#D97706">${stats.byStatus.pending}</div><div class="label">Pending Payment</div></div>
+          <div class="stat-card"><div class="number" style="color:${stats.urgent > 0 ? '#DC2626' : '#059669'}">${stats.urgent}</div><div class="label">Urgent (≤14 days)</div></div>
+        </div>
+        <div class="card">
+          <h3 style="margin-bottom:16px;font-size:16px">Payer Queues</h3>
+          <div class="payer-grid">
+            ${Object.entries(PAYERS).map(([key, p]) => `
+              <div class="payer-card" style="border:2px solid ${p.color}20;background:${p.color}08" onclick="filterByPayer('${key}')">
+                <h3 style="color:${p.color}">${p.name}</h3>
+                <div class="count">${stats.byPayer[key]}</div>
+                <div style="font-size:12px;color:#6B7280">claims</div>
+                <a href="${p.portal}" target="_blank" class="portal-btn" style="background:${p.color}" onclick="event.stopPropagation()">Open Portal →</a>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        <div class="card">
+          <h3 style="margin-bottom:16px;font-size:16px">
+            ${selectedPayer ? PAYERS[selectedPayer].name + ' Claims' : 'All Claims'}
+            ${selectedPayer ? `<button class="btn-secondary" style="margin-left:12px;padding:4px 8px;font-size:12px" onclick="clearFilter()">Clear Filter</button>` : ''}
+          </h3>
+          ${sorted.length === 0 ? `<div class="empty-state">No claims yet. <a onclick="showView('new')">Create your first claim</a></div>` : `
+            <table>
+              <thead><tr><th>Client</th><th>Service Date</th><th>CPT</th><th>Payer</th><th>Deadline</th><th>Status</th></tr></thead>
+              <tbody>
+                ${sorted.map(c => {
+                  const days = getDaysUntilDeadline(c);
+                  const mods = [c.modifier1, c.modifier2].filter(Boolean).map(m => '-' + m).join('');
+                  return `<tr class="clickable" onclick="showDetail('${c.id}')">
+                    <td style="font-weight:500">${c.clientName}</td>
+                    <td>${c.serviceDate}</td>
+                    <td>${c.cptCode}${mods}</td>
+                    <td style="color:${PAYERS[c.payer].color};font-weight:500">${PAYERS[c.payer].name}</td>
+                    <td style="color:${days <= 14 ? '#DC2626' : days <= 30 ? '#D97706' : '#059669'};font-weight:${days <= 14 ? 600 : 400}">${days} days</td>
+                    <td><span class="status-badge" style="background:${STATUS_COLORS[c.status]}15;color:${STATUS_COLORS[c.status]}">${c.status.charAt(0).toUpperCase() + c.status.slice(1)}</span></td>
+                  </tr>`;
+                }).join('')}
+              </tbody>
+            </table>
+          `}
+        </div>
+      `;
+      document.getElementById('dashboard-view').innerHTML = html;
+    }
+
+    function filterByPayer(payer) {
+      selectedPayer = payer;
+      renderDashboard();
+    }
+
+    function clearFilter() {
+      selectedPayer = null;
+      renderDashboard();
+    }
+
+    function renderNewForm() {
+      const modOptions = MODIFIERS.map(m => `<option value="${m.code}">${m.label}</option>`).join('');
+      const cptOptions = CPT_CODES.map(c => `<option value="${c}">${c}</option>`).join('');
+      const payerOptions = Object.entries(PAYERS).map(([k, p]) => `<option value="${k}">${p.name}</option>`).join('');
+
+      document.getElementById('new-view').innerHTML = `
+        <div class="card">
+          <h2 style="margin-bottom:20px;font-size:18px">New Claim</h2>
+          <div class="form-grid">
+            <div class="form-group"><label>Client Name *</label><input type="text" id="clientName"></div>
+            <div class="form-group"><label>Date of Birth</label><input type="date" id="clientDOB"></div>
+            <div class="form-group"><label>Member ID</label><input type="text" id="memberId"></div>
+            <div class="form-group"><label>Service Date *</label><input type="date" id="serviceDate"></div>
+            <div class="form-group"><label>CPT Code *</label><select id="cptCode">${cptOptions}</select></div>
+            <div class="form-group"><label>Modifier 1</label><select id="modifier1">${modOptions}</select></div>
+            <div class="form-group"><label>Modifier 2</label><select id="modifier2">${modOptions}</select></div>
+            <div class="form-group"><label>Modifier 3</label><select id="modifier3">${modOptions}</select></div>
+            <div class="form-group"><label>Modifier 4</label><select id="modifier4">${modOptions}</select></div>
+            <div class="form-group"><label>Units</label><input type="number" id="units" value="1"></div>
+            <div class="form-group"><label>Diagnosis Code (ICD-10) *</label><input type="text" id="diagnosisCode" placeholder="F32.1"></div>
+            <div class="form-group"><label>Payer *</label><select id="payer">${payerOptions}</select></div>
+            <div class="form-group"><label>Rendering Provider</label><input type="text" id="renderingProvider" value="Joey - LAC, CAS"></div>
+            <div class="form-group"><label>NPI</label><input type="text" id="npi"></div>
+            <div class="form-group"><label>Tax ID</label><input type="text" id="taxId"></div>
+            <div class="form-group"><label>Place of Service</label><select id="placeOfService"><option value="11">11 - Office</option><option value="02">02 - Telehealth</option><option value="10">10 - Telehealth (Patient Home)</option></select></div>
+            <div class="form-group"><label>Charge Amount</label><input type="number" id="chargeAmount" placeholder="150.00"></div>
+          </div>
+          <div style="margin-top:24px;display:flex;gap:12px">
+            <button class="btn btn-primary" onclick="saveClaim()">Save Claim</button>
+            <button class="btn btn-secondary" onclick="showView('dashboard')">Cancel</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function saveClaim() {
+      const clientName = document.getElementById('clientName').value;
+      const serviceDate = document.getElementById('serviceDate').value;
+      const diagnosisCode = document.getElementById('diagnosisCode').value;
+      if (!clientName || !serviceDate || !diagnosisCode) { alert('Please fill required fields'); return; }
+
+      const claim = {
+        id: Date.now().toString(),
+        clientName,
+        clientDOB: document.getElementById('clientDOB').value,
+        memberId: document.getElementById('memberId').value,
+        serviceDate,
+        cptCode: document.getElementById('cptCode').value,
+        modifier1: document.getElementById('modifier1').value,
+        modifier2: document.getElementById('modifier2').value,
+        modifier3: document.getElementById('modifier3').value,
+        modifier4: document.getElementById('modifier4').value,
+        units: document.getElementById('units').value,
+        diagnosisCode,
+        payer: document.getElementById('payer').value,
+        renderingProvider: document.getElementById('renderingProvider').value,
+        npi: document.getElementById('npi').value,
+        taxId: document.getElementById('taxId').value,
+        placeOfService: document.getElementById('placeOfService').value,
+        chargeAmount: document.getElementById('chargeAmount').value,
+        status: 'draft',
+        createdAt: new Date().toISOString()
+      };
+      claims.push(claim);
+      saveClaims();
+      showView('dashboard');
+    }
+
+    function showDetail(id) {
+      selectedClaim = claims.find(c => c.id === id);
+      if (!selectedClaim) return;
+      document.getElementById('dashboard-view').classList.add('hidden');
+      document.getElementById('detail-view').classList.remove('hidden');
+      renderDetail();
+    }
+
+    function renderDetail() {
+      const c = selectedClaim;
+      const days = getDaysUntilDeadline(c);
+      const fields = [
+        ['Client Name', c.clientName, 'name'],
+        ['Date of Birth', c.clientDOB, 'dob'],
+        ['Member ID', c.memberId, 'member'],
+        ['Service Date', c.serviceDate, 'service'],
+        ['CPT Code', c.cptCode, 'cpt'],
+        ['Modifier 1', c.modifier1, 'mod1'],
+        ['Modifier 2', c.modifier2, 'mod2'],
+        ['Modifier 3', c.modifier3, 'mod3'],
+        ['Modifier 4', c.modifier4, 'mod4'],
+        ['Units', c.units, 'units'],
+        ['Diagnosis Code', c.diagnosisCode, 'dx'],
+        ['Rendering Provider', c.renderingProvider, 'provider'],
+        ['NPI', c.npi, 'npi'],
+        ['Tax ID', c.taxId, 'tax'],
+        ['Place of Service', c.placeOfService, 'pos'],
+        ['Charge Amount', c.chargeAmount ? '$' + c.chargeAmount : '', 'charge']
+      ];
+
+      document.getElementById('detail-view').innerHTML = `
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:20px">
+            <div>
+              <button class="back-btn" onclick="showView('dashboard')">← Back to list</button>
+              <h2 style="font-size:20px">${c.clientName}</h2>
+              <div style="color:#6B7280;margin-top:4px">Service: ${c.serviceDate} • ${c.cptCode}</div>
+            </div>
+            <a href="${PAYERS[c.payer].portal}" target="_blank" class="btn btn-primary" style="text-decoration:none;background:${PAYERS[c.payer].color}">Open ${PAYERS[c.payer].name} Portal →</a>
+          </div>
+          <div class="status-buttons">
+            ${Object.keys(STATUS_COLORS).map(s => `
+              <button class="status-btn" style="background:${c.status === s ? STATUS_COLORS[s] : STATUS_COLORS[s] + '15'};color:${c.status === s ? 'white' : STATUS_COLORS[s]}" onclick="updateStatus('${s}')">${s.charAt(0).toUpperCase() + s.slice(1)}</button>
+            `).join('')}
+          </div>
+          <div style="background:#F9FAFB;padding:16px;border-radius:8px;margin-bottom:20px">
+            <div style="font-size:13px;color:#6B7280">📋 Click any field below to copy it to your clipboard</div>
+          </div>
+          <div class="detail-grid">
+            ${fields.map(([label, value, key]) => `
+              <div class="copy-field" id="field-${key}" onclick="copyField('${key}', '${(value || '').replace(/'/g, "\\'")}')">
+                <div class="label">${label}</div>
+                <div class="value">${value || '—'}<span class="hint">Click to copy</span></div>
+              </div>
+            `).join('')}
+          </div>
+          <div style="margin-top:24px;padding-top:20px;border-top:1px solid #E5E7EB;display:flex;justify-content:space-between">
+            <div style="font-size:13px;color:#6B7280">Filing deadline: ${days} days remaining (${PAYERS[c.payer].filing} day limit)</div>
+            <button class="btn btn-danger" onclick="deleteClaim()">Delete Claim</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function copyField(key, value) {
+      navigator.clipboard.writeText(value);
+      const el = document.getElementById('field-' + key);
+      el.classList.add('copied');
+      el.querySelector('.hint').textContent = '✓ Copied';
+      setTimeout(() => {
+        el.classList.remove('copied');
+        el.querySelector('.hint').textContent = 'Click to copy';
+      }, 1500);
+    }
+
+    function updateStatus(status) {
+      selectedClaim.status = status;
+      selectedClaim.updatedAt = new Date().toISOString();
+      saveClaims();
+      renderDetail();
+    }
+
+    function deleteClaim() {
+      if (!confirm('Delete this claim?')) return;
+      claims = claims.filter(c => c.id !== selectedClaim.id);
+      saveClaims();
+      showView('dashboard');
+    }
+
+    function renderReports() {
+      const stats = getStats();
+      const statusBars = Object.entries(stats.byStatus).map(([s, count]) => `
+        <div class="bar-row">
+          <div class="bar-label" style="color:${STATUS_COLORS[s]}">${s.charAt(0).toUpperCase() + s.slice(1)}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${stats.total ? (count / stats.total) * 100 : 0}%;background:${STATUS_COLORS[s]}"></div></div>
+          <div class="bar-count">${count}</div>
+        </div>
+      `).join('');
+
+      const payerBars = Object.entries(stats.byPayer).map(([p, count]) => `
+        <div class="bar-row">
+          <div class="bar-label" style="color:${PAYERS[p].color}">${PAYERS[p].name}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${stats.total ? (count / stats.total) * 100 : 0}%;background:${PAYERS[p].color}"></div></div>
+          <div class="bar-count">${count}</div>
+        </div>
+      `).join('');
+
+      const submitted = stats.byStatus.submitted + stats.byStatus.pending + stats.byStatus.paid + stats.byStatus.denied;
+      const submissionRate = stats.total ? Math.round((submitted / stats.total) * 100) : 0;
+      const paymentRate = stats.total ? Math.round((stats.byStatus.paid / stats.total) * 100) : 0;
+      const denialRate = stats.total ? Math.round((stats.byStatus.denied / stats.total) * 100) : 0;
+      const pendingClaims = claims.filter(c => ['draft', 'ready'].includes(c.status));
+      const avgDays = pendingClaims.length ? Math.round(pendingClaims.reduce((sum, c) => sum + getDaysUntilDeadline(c), 0) / pendingClaims.length) : '—';
+
+      document.getElementById('reports-view').innerHTML = `
+        <div class="card">
+          <h2 style="margin-bottom:20px;font-size:18px">Reports</h2>
+          <div class="report-section">
+            <div><h3 style="font-size:14px;color:#6B7280;margin-bottom:12px">By Status</h3>${statusBars}</div>
+            <div><h3 style="font-size:14px;color:#6B7280;margin-bottom:12px">By Payer</h3>${payerBars}</div>
+          </div>
+          <div class="quick-stats">
+            <h3>Quick Stats</h3>
+            <div class="quick-stats-grid">
+              <div><div class="qs-label">Submission Rate</div><div class="qs-value">${submissionRate}%</div></div>
+              <div><div class="qs-label">Payment Rate</div><div class="qs-value" style="color:#059669">${paymentRate}%</div></div>
+              <div><div class="qs-label">Denial Rate</div><div class="qs-value" style="color:#DC2626">${denialRate}%</div></div>
+              <div><div class="qs-label">Avg Days to Deadline</div><div class="qs-value">${avgDays}</div></div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    loadClaims();
+    renderDashboard();
+  </script>
+</body>
+</html>
