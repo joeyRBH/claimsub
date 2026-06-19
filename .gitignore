@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Environment / secrets — never commit real env files. Only *.example is tracked.
+.env
+.env.*
+!.env.example
+
+# Build / cache
+.vercel/
+dist/
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Local Claude Code settings (machine-specific)
+.claude/settings.local.json
