@@ -1,0 +1,43 @@
+# Copy to terraform.tfvars and adjust. NEVER put real secrets here — terraform.tfvars
+# is gitignored, but the master password should still come from SSM via TF_VAR at
+# apply time (see README §Secrets), not from a file.
+
+# ─── Core ───────────────────────────────────────────────────
+aws_region   = "us-west-2"
+project_name = "claimsub"
+environment  = "prod"
+
+# ─── Network ────────────────────────────────────────────────
+vpc_cidr             = "10.40.0.0/16"
+private_subnet_cidrs = ["10.40.1.0/24", "10.40.2.0/24"]
+
+# ─── Database ───────────────────────────────────────────────
+db_engine_version        = "16"
+db_instance_class        = "db.t4g.micro"
+db_allocated_storage     = 20
+db_name                  = "claimsub"
+db_master_username       = "claimsub_admin"
+db_backup_retention_days = 14
+db_multi_az              = false
+db_deletion_protection   = true
+# rds_kms_key_arn        = ""   # empty = default aws/rds key (still encrypted)
+
+# db_master_password is intentionally NOT set here. Provide it at apply time:
+#   export TF_VAR_db_master_password="$(aws ssm get-parameter \
+#     --name /claimsub/prod/DB_MASTER_PASSWORD --with-decryption \
+#     --query Parameter.Value --output text)"
+
+# ─── Lambda / logs ──────────────────────────────────────────
+lambda_runtime         = "nodejs20.x"
+lambda_memory_mb       = 512
+lambda_timeout_seconds = 15
+log_retention_days     = 30
+# logs_kms_key_arn     = ""   # empty = AWS-managed log encryption
+
+# ─── API / custom domain ────────────────────────────────────
+allowed_origins = ["https://app.claimsub.com", "https://claimsub.com"]
+api_domain_name = "api.claimsub.com"
+
+# Leave false for the first apply (cert request only). Flip to true and re-apply
+# AFTER the ACM cert is ISSUED. See README §DNS repoint.
+create_api_custom_domain = false
