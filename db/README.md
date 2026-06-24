@@ -1,6 +1,6 @@
-# Claimsub database
+# Reddably database
 
-`schema.sql` is the **source of truth** for the Claimsub PostgreSQL data model. It is
+`schema.sql` is the **source of truth** for the Reddably PostgreSQL data model. It is
 applied to the RDS instance behind `api.claimsub.com` separately from the Vercel
 frontend deploy.
 
@@ -43,10 +43,10 @@ columns — alter existing tables with dedicated migration scripts.
 
 ```bash
 # Connection details come from your environment / secrets manager, e.g.:
-export PGHOST=claimsub-prod.xxxxxx.us-east-1.rds.amazonaws.com
+export PGHOST=reddably-prod.xxxxxx.us-east-1.rds.amazonaws.com
 export PGPORT=5432
-export PGDATABASE=claimsub
-export PGUSER=claimsub_app
+export PGDATABASE=reddably
+export PGUSER=reddably_app
 export PGPASSWORD=...        # pull from your secrets manager, don't hardcode
 
 psql -v ON_ERROR_STOP=1 -f db/schema.sql
@@ -58,7 +58,7 @@ CI / deploy scripts.
 ### Via an SSH tunnel to a bastion
 
 ```bash
-ssh -N -L 5432:claimsub-prod.xxxxxx.us-east-1.rds.amazonaws.com:5432 bastion-host &
+ssh -N -L 5432:reddably-prod.xxxxxx.us-east-1.rds.amazonaws.com:5432 bastion-host &
 PGHOST=localhost PGPORT=5432 psql -v ON_ERROR_STOP=1 -f db/schema.sql
 ```
 

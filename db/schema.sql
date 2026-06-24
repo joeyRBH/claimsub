@@ -1,5 +1,5 @@
 -- =============================================================================
--- Claimsub — PostgreSQL schema (source of truth)
+-- Reddably — PostgreSQL schema (source of truth)
 -- =============================================================================
 -- Out-of-network (OON) insurance billing for mental-health group practices.
 --

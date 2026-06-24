@@ -1,10 +1,10 @@
-/* Claimsub — login page behavior.
+/* Reddably — login page behavior.
  *
- * All network calls go through window.ClaimsubAPI (public/js/api-client.js);
+ * All network calls go through window.ReddablyAPI (public/js/api-client.js);
  * this page never calls fetch() directly.
  *
  *   1. If already authenticated, redirect straight to the app.
- *   2. On submit, call ClaimsubAPI.login(); show a loading state; on success
+ *   2. On submit, call ReddablyAPI.login(); show a loading state; on success
  *      redirect to the app, on failure show ONE generic error (no field-level
  *      detail, no user-enumeration) and re-enable the form.
  */
@@ -14,7 +14,7 @@
   var APP_URL = './app/app.html';
   var GENERIC_ERROR = 'Invalid email or password';
 
-  var api = window.ClaimsubAPI;
+  var api = window.ReddablyAPI;
 
   // Already signed in? Skip the form.
   if (api && api.isAuthenticated && api.isAuthenticated()) {
@@ -63,7 +63,7 @@
       setLoading(true);
       api.login(email, password).then(
         function () {
-          // Token is stored by ClaimsubAPI.login on success.
+          // Token is stored by ReddablyAPI.login on success.
           window.location.assign(APP_URL);
         },
         function () {

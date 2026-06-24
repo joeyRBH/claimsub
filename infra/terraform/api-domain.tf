@@ -57,3 +57,50 @@ resource "aws_apigatewayv2_api_mapping" "api" {
   domain_name = aws_apigatewayv2_domain_name.api[0].id
   stage       = aws_apigatewayv2_stage.default.id
 }
+
+# -----------------------------------------------------------------------------
+# Reddably-branded custom domain (api.reddably.com). Mirrors the api.claimsub.com
+# resources above and coexists with them; same two-phase create_api_custom_domain
+# gate, same manual DNS workflow (validation CNAMEs + endpoint record added by
+# Joey). See the reddably outputs in outputs.tf.
+# -----------------------------------------------------------------------------
+
+resource "aws_acm_certificate" "api_reddably" {
+  domain_name       = var.api_domain_name_reddably
+  validation_method = "DNS"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+
+  tags = {
+    Name = "${local.prefix}-api-cert-reddably"
+  }
+}
+
+resource "aws_apigatewayv2_domain_name" "api_reddably" {
+  count = var.create_api_custom_domain ? 1 : 0
+
+  domain_name = var.api_domain_name_reddably
+
+  domain_name_configuration {
+    # Reference the cert ARN directly. Apply Phase 2 only after the cert is
+    # ISSUED (validated via the manually-added DNS records); otherwise this
+    # resource fails because the cert is still pending.
+    certificate_arn = aws_acm_certificate.api_reddably.arn
+    endpoint_type   = "REGIONAL"
+    security_policy = "TLS_1_2"
+  }
+
+  tags = {
+    Name = "${local.prefix}-api-domain-reddably"
+  }
+}
+
+resource "aws_apigatewayv2_api_mapping" "api_reddably" {
+  count = var.create_api_custom_domain ? 1 : 0
+
+  api_id      = aws_apigatewayv2_api.http.id
+  domain_name = aws_apigatewayv2_domain_name.api_reddably[0].id
+  stage       = aws_apigatewayv2_stage.default.id
+}

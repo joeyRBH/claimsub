@@ -2,7 +2,7 @@
 
 // HTTP response helper with CORS for API Gateway proxy integration.
 
-const ALLOWED_ORIGINS = ['https://app.claimsub.com', 'https://claimsub.com'];
+const ALLOWED_ORIGINS = ['https://app.claimsub.com', 'https://claimsub.com', 'https://app.reddably.com', 'https://reddably.com'];
 
 // Echo the request Origin only if it's allowlisted; otherwise fall back to the
 // app origin. Never reflect an arbitrary origin.

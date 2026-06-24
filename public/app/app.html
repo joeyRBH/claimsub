@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Claimsub</title>
+  <meta name="reddably-api-base" content="https://api.reddably.com">
+  <title>Reddably</title>
 
   <!-- Tokens first (authoritative F0 design system), then shell layout. -->
   <link rel="stylesheet" href="../app-foundation/styles/tokens.css">
@@ -29,13 +30,13 @@
           </svg>
         </button>
 
-        <a class="wordmark" href="#" aria-label="Claimsub home">
+        <a class="wordmark" href="#" aria-label="Reddably home">
           <svg class="wordmark__mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <rect x="3" y="3" width="18" height="18" rx="5" fill="currentColor"/>
             <path d="M16 9.2a4.2 4.2 0 1 0 0 5.6" fill="none" stroke="var(--color-on-primary)"
                   stroke-width="2" stroke-linecap="round"/>
           </svg>
-          <span class="wordmark__text">Claimsub</span>
+          <span class="wordmark__text">Reddably</span>
         </a>
       </div>
 
@@ -168,7 +169,7 @@
           <path d="M3 9h18M8 14h8M8 17h5" fill="none" stroke="currentColor"
                 stroke-width="1.5" stroke-linecap="round"/>
         </svg>
-        <h1 class="empty-state__title">Welcome to Claimsub</h1>
+        <h1 class="empty-state__title">Welcome to Reddably</h1>
         <p class="empty-state__body">
           Select a section from the sidebar to get started. Screens render here.
         </p>
@@ -177,7 +178,7 @@
 
   </div>
 
-  <!-- Canonical API namespace: all network calls go through window.ClaimsubAPI. -->
+  <!-- Canonical API namespace: all network calls go through window.ReddablyAPI. -->
   <script src="../js/api-client.js"></script>
   <!-- Shell behavior: auth guard, drawer, user menu, logout. -->
   <script src="./app.js"></script>

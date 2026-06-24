@@ -1,8 +1,8 @@
 {
-  "name": "claimsub-backend",
+  "name": "reddably-backend",
   "version": "0.1.0",
   "private": true,
-  "description": "Claimsub backend — AWS Lambda handlers (API Gateway proxy integration).",
+  "description": "Reddably backend — AWS Lambda handlers (API Gateway proxy integration).",
   "license": "UNLICENSED",
   "engines": {
     "node": ">=18"

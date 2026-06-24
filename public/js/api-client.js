@@ -1,14 +1,32 @@
-/* Claimsub API client — the single entry point for all network calls.
- * Views must use window.ClaimsubAPI and never call fetch() directly.
+/* Reddably API client — the single entry point for all network calls.
+ * Views must use window.ReddablyAPI and never call fetch() directly.
  *
- * Auth token is stored in localStorage under "claimsub_access_token".
+ * Auth token is stored in localStorage under "reddably_access_token".
  * No PHI is ever placed in URLs or query strings.
  */
 (function (window) {
   'use strict';
 
-  var API_BASE = 'https://api.claimsub.com';
-  var TOKEN_KEY = 'claimsub_access_token';
+  // API base URL — configurable so the domain can be flipped with zero code edits.
+  // Resolution order (first match wins):
+  //   1. window.REDDABLY_API_BASE  — global set by an inline/injected bootstrap snippet
+  //   2. <meta name="reddably-api-base" content="https://api.reddably.com">
+  //   3. default below (the current live hostname)
+  // There is no build step (vanilla JS), so this is the static-site equivalent of a
+  // public env var: set the global or the meta tag, no source change required.
+  function resolveApiBase() {
+    if (window.REDDABLY_API_BASE) return window.REDDABLY_API_BASE;
+    try {
+      var meta = window.document.querySelector('meta[name="reddably-api-base"]');
+      if (meta && meta.content) return meta.content;
+    } catch (e) {
+      /* document unavailable — fall through to default */
+    }
+    return 'https://api.claimsub.com';
+  }
+
+  var API_BASE = resolveApiBase();
+  var TOKEN_KEY = 'reddably_access_token';
 
   // --- token storage ---------------------------------------------------------
 
@@ -118,7 +136,7 @@
   // TODO(magic-link): requestMagicLink(email) / verifyMagicLink(token) once the
   // /send-email endpoint exists (client/patient portal auth).
 
-  window.ClaimsubAPI = {
+  window.ReddablyAPI = {
     // config
     API_BASE: API_BASE,
     // token helpers
@@ -126,7 +144,7 @@
     setToken: setToken,
     clearToken: clearToken,
     isAuthenticated: isAuthenticated,
-    // low-level (kept available for other ClaimsubAPI modules; views use the named methods)
+    // low-level (kept available for other ReddablyAPI modules; views use the named methods)
     request: request,
     // auth
     register: register,

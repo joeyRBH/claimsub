@@ -1,6 +1,6 @@
 'use strict';
 
-// One-off schema-migration Lambda (claimsub-<env>-migrate).
+// One-off schema-migration Lambda (reddably-<env>-migrate).
 //
 // Applies db/schema.sql to the database from inside the VPC, so no bastion or
 // public DB access is needed. Unlike the auth handlers, this one reads the

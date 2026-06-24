@@ -112,3 +112,33 @@ output "api_custom_domain_hosted_zone_id" {
   description = "Hosted zone ID of the API Gateway regional endpoint (for a Route53 ALIAS record). Null until Phase 2."
   value       = var.create_api_custom_domain ? aws_apigatewayv2_domain_name.api[0].domain_name_configuration[0].hosted_zone_id : null
 }
+
+# ─────────────────────────────────────────────────────────────
+# Reddably custom domain (ACM + API Gateway)
+# ─────────────────────────────────────────────────────────────
+
+output "acm_certificate_arn_reddably" {
+  description = "ARN of the requested ACM certificate for api.reddably.com."
+  value       = aws_acm_certificate.api_reddably.arn
+}
+
+output "acm_validation_records_reddably" {
+  description = "DNS records to add MANUALLY at the DNS provider to validate the Reddably ACM cert (name/type/value)."
+  value = [
+    for dvo in aws_acm_certificate.api_reddably.domain_validation_options : {
+      name  = dvo.resource_record_name
+      type  = dvo.resource_record_type
+      value = dvo.resource_record_value
+    }
+  ]
+}
+
+output "api_custom_domain_target_reddably" {
+  description = "Regional API Gateway hostname to point api.reddably.com at (CNAME/ALIAS). Null until create_api_custom_domain = true (Phase 2)."
+  value       = var.create_api_custom_domain ? aws_apigatewayv2_domain_name.api_reddably[0].domain_name_configuration[0].target_domain_name : null
+}
+
+output "api_custom_domain_hosted_zone_id_reddably" {
+  description = "Hosted zone ID of the Reddably API Gateway regional endpoint (for a Route53 ALIAS record). Null until Phase 2."
+  value       = var.create_api_custom_domain ? aws_apigatewayv2_domain_name.api_reddably[0].domain_name_configuration[0].hosted_zone_id : null
+}

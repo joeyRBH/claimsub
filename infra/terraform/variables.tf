@@ -180,15 +180,21 @@ variable "logs_kms_key_arn" {
 # ─────────────────────────────────────────────────────────────
 
 variable "allowed_origins" {
-  description = "CORS allow-list for the HTTP API. Locked to the two Claimsub browser origins."
+  description = "CORS allow-list for the HTTP API. Locked to the Claimsub and Reddably browser origins."
   type        = list(string)
-  default     = ["https://app.claimsub.com", "https://claimsub.com"]
+  default     = ["https://app.claimsub.com", "https://claimsub.com", "https://app.reddably.com", "https://reddably.com"]
 }
 
 variable "api_domain_name" {
   description = "Custom domain served by API Gateway."
   type        = string
   default     = "api.claimsub.com"
+}
+
+variable "api_domain_name_reddably" {
+  description = "Additional Reddably-branded custom domain served by API Gateway (coexists with api_domain_name)."
+  type        = string
+  default     = "api.reddably.com"
 }
 
 variable "create_api_custom_domain" {

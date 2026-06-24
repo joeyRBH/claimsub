@@ -35,8 +35,9 @@ log_retention_days     = 30
 # logs_kms_key_arn     = ""   # empty = AWS-managed log encryption
 
 # ─── API / custom domain ────────────────────────────────────
-allowed_origins = ["https://app.claimsub.com", "https://claimsub.com"]
-api_domain_name = "api.claimsub.com"
+allowed_origins          = ["https://app.claimsub.com", "https://claimsub.com", "https://app.reddably.com", "https://reddably.com"]
+api_domain_name          = "api.claimsub.com"
+api_domain_name_reddably = "api.reddably.com"
 
 # Leave false for the first apply (cert request only). Flip to true and re-apply
 # AFTER the ACM cert is ISSUED. See README §DNS repoint.

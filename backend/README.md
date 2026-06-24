@@ -1,4 +1,4 @@
-# Claimsub backend
+# Reddably backend
 
 Node.js AWS Lambda handlers (API Gateway proxy integration) behind
 `https://api.claimsub.com`. This folder currently covers **core authentication**:
@@ -73,14 +73,14 @@ A one-off Lambda that applies `db/schema.sql` to RDS from inside the VPC, so no
 bastion is needed. Invoked directly (not via API Gateway):
 
 ```bash
-aws lambda invoke --function-name claimsub-prod-migrate /tmp/out.json && cat /tmp/out.json
+aws lambda invoke --function-name reddably-prod-migrate /tmp/out.json && cat /tmp/out.json
 # -> {"ok":true,"message":"Schema applied successfully."}
 ```
 
 Differences from the auth handlers:
 
 - Reads the connection string from **SSM at runtime** — the parameter named by
-  `DATABASE_URL_SSM_PARAM` (e.g. `/claimsub/prod/DATABASE_URL`), via the SSM
+  `DATABASE_URL_SSM_PARAM` (e.g. `/reddably/prod/DATABASE_URL`), via the SSM
   interface endpoint. No out-of-band env-hydration step. Uses
   `@aws-sdk/client-ssm`, which is **provided by the Node 20 Lambda runtime** (not
   a `package.json` dependency, so the shared zip is unchanged).
@@ -129,7 +129,7 @@ There is no build step. Handlers are plain CommonJS modules; deploy the folder (
 - Parameterized queries only — no string-concatenated SQL.
 - Generic auth errors on both register and login (no user-enumeration).
 - bcryptjs cost factor 12.
-- CORS allows `https://app.claimsub.com` and `https://claimsub.com`; methods
+- CORS allows `https://app.reddably.com` and `https://reddably.com`; methods
   `GET, POST, OPTIONS`; headers `Content-Type, Authorization`. Preflight handled.
 - Never logs passwords, tokens, or PHI.
 - Request rate-limiting is expected at the API Gateway / WAF layer (not implemented here).

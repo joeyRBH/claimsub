@@ -1,4 +1,4 @@
-# Claimsub
+# Reddably
 
 Out-of-network (OON) insurance billing for mental-health **group practices** — practice
 admins overseeing multiple clinicians. Sibling product to Sessionably (same stack).
@@ -9,7 +9,7 @@ admins overseeing multiple clinicians. Sibling product to Sessionably (same stac
 
 - **Frontend** — static, vanilla HTML/CSS/JS (no frameworks, no build step), served by
   Vercel from the repo root. Assets under `/public`. All network calls go through
-  `window.ClaimsubAPI` (`public/js/api-client.js`).
+  `window.ReddablyAPI` (`public/js/api-client.js`).
 - **Backend** — AWS Lambda + PostgreSQL (RDS) inside a VPC, behind
   `https://api.claimsub.com`. Deployed **separately** from Vercel. See
   [`backend/README.md`](backend/README.md).
@@ -30,7 +30,7 @@ admins overseeing multiple clinicians. Sibling product to Sessionably (same stac
 
 ## Status
 
-Foundation in progress: PostgreSQL schema, the `window.ClaimsubAPI` client foundation, and
+Foundation in progress: PostgreSQL schema, the `window.ReddablyAPI` client foundation, and
 core auth (register / login / me) Lambda handlers. Design system, app shell, and marketing
 site land next.
 

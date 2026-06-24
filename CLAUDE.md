@@ -1,6 +1,6 @@
-# Claimsub — Project Memory
+# Reddably — Project Memory
 
-Claimsub is an out-of-network (OON) insurance billing platform for mental-health group
+Reddably is an out-of-network (OON) insurance billing platform for mental-health group
 practices — practice admins overseeing multiple clinicians. Sibling product to Sessionably
 (same founder, same stack). Differentiator vs. Mentaya: built for group practices, not solo
 providers.
@@ -11,12 +11,12 @@ providers.
   React / Vue / Next. One HTML file per view (e.g. `app.html`, `client-portal.html`).
 - HIPAA-compliant. No PHI in URLs or query strings. PHI encrypted at rest (RDS,
   infra-level) and in transit. Audit-log PHI access.
-- All network calls go through `window.ClaimsubAPI` (`public/js/api-client.js`). Views
+- All network calls go through `window.ReddablyAPI` (`public/js/api-client.js`). Views
   never call `fetch()` directly.
 - Use design tokens, never raw hex. Reference the semantic CSS variables from
   `public/app-foundation/styles/tokens.css`.
 - Light mode only. A single "Ink & Oxblood" identity. No dark mode, no theme toggle.
-- Auth token stored in `localStorage` under `claimsub_access_token`.
+- Auth token stored in `localStorage` under `reddably_access_token`.
 
 ## Stack
 
@@ -27,7 +27,7 @@ providers.
   egress, so it can't make outbound Stripe calls.
 - Payments: Stripe + Stripe Connect. Per-claim platform fee of 5%, paid by the client or
   the practice (configurable, with per-clinician override).
-- Domains: `claimsub.com` (marketing), `app.claimsub.com`, `api.claimsub.com`.
+- Domains: `reddably.com` (marketing), `app.reddably.com`, `api.claimsub.com`.
 
 ## Design system (F0 — "Ink & Oxblood")
 

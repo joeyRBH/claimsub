@@ -1,11 +1,11 @@
-/* Claimsub — app shell behavior.
+/* Reddably — app shell behavior.
  *
  * Responsibilities (shell only, no view logic):
  *   1. Auth guard (gated by AUTH_REQUIRED until /login.html ships).
- *   2. Ensure window.ClaimsubAPI exposes the contract the shell relies on.
+ *   2. Ensure window.ReddablyAPI exposes the contract the shell relies on.
  *   3. Off-canvas drawer toggle (mobile) + user menu + logout.
  *
- * All network calls go through window.ClaimsubAPI (public/js/api-client.js),
+ * All network calls go through window.ReddablyAPI (public/js/api-client.js),
  * which already provides API_BASE, getToken/setToken/clearToken and request().
  * Views never call fetch() directly.
  */
@@ -18,17 +18,17 @@
   var LOGIN_URL = '/login.html';
 
   // ---------------------------------------------------------------------------
-  // ClaimsubAPI: reuse the canonical client; add a thin baseUrl alias + a
+  // ReddablyAPI: reuse the canonical client; add a thin baseUrl alias + a
   // request(path, options) convenience without clobbering the existing module.
   // ---------------------------------------------------------------------------
   function ensureApi() {
-    var api = window.ClaimsubAPI;
+    var api = window.ReddablyAPI;
     if (!api) {
       // api-client.js failed to load — fail safe with a minimal stand-in so the
       // shell still renders and logout never throws.
-      console.warn('[Claimsub] ClaimsubAPI unavailable; using shell fallback.');
-      var TOKEN_KEY = 'claimsub_access_token';
-      api = window.ClaimsubAPI = {
+      console.warn('[Reddably] ReddablyAPI unavailable; using shell fallback.');
+      var TOKEN_KEY = 'reddably_access_token';
+      api = window.ReddablyAPI = {
         getToken: function () { try { return localStorage.getItem(TOKEN_KEY); } catch (e) { return null; } },
         setToken: function (t) { try { if (t) localStorage.setItem(TOKEN_KEY, t); } catch (e) {} },
         clearToken: function () { try { localStorage.removeItem(TOKEN_KEY); } catch (e) {} },
@@ -36,8 +36,16 @@
     }
 
     // baseUrl: alias the existing API_BASE (or default) without overwriting it.
+    // The default is configurable so the domain can be flipped with zero code edits:
+    // set window.REDDABLY_API_BASE or a <meta name="reddably-api-base"> tag (see
+    // api-client.js); falls back to the current live hostname.
     if (!api.baseUrl) {
-      api.baseUrl = api.API_BASE || 'https://api.claimsub.com';
+      var metaBase = null;
+      try {
+        var meta = document.querySelector('meta[name="reddably-api-base"]');
+        metaBase = meta && meta.content;
+      } catch (e) { /* ignore */ }
+      api.baseUrl = api.API_BASE || window.REDDABLY_API_BASE || metaBase || 'https://api.claimsub.com';
     }
     return api;
   }
