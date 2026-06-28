@@ -1,37 +1,44 @@
 'use strict';
 
-// POST /api/claims/:id/charge-fee — INTERNAL Vercel serverless function.
+// POST /api/claims/:id/charge-fee — Vercel serverless function, STAFF JWT-authenticated.
 //
-// Invoked server-to-server by the claims Lambda right after a successful Stedi
-// submission (the Lambda is in a VPC with no Stripe egress). This runs on Vercel
-// where it has outbound internet to Stripe, and reaches Postgres via DATABASE_URL.
-// It charges the patient the per-claim platform fee off-session and records a
-// transactions row.
+// Triggered by the frontend right after a successful claim submission (the claims
+// Lambda has no Stripe egress, so the charge can't happen there). The browser already
+// holds the staff session JWT and forwards it here as a Bearer token; this function
+// verifies it with JWT_SECRET (same lib/auth as the Lambda handlers), scopes the claim
+// to the caller's practice, then charges the patient's saved card off-session and
+// records a transactions row.
 //
-// Auth: a short-lived internal token (lib/internal_token) signed with JWT_SECRET and
-// bound to this claim_id — NOT a staff/session token. Idempotent: if a paid
-// platform_fee already exists for the claim, it returns without charging again.
-// Never throws to the caller in a way that would imply the claim failed; the Lambda
-// treats any error here as best-effort. Never logs PHI.
+// Best-effort by design: the claim is already submitted, so the frontend ignores the
+// result. Idempotent — if a paid platform_fee already exists for the claim, it returns
+// without charging again. Never logs PHI.
 
 const db = require('../../../backend/lib/db');
 const stripe = require('../../../backend/lib/stripe');
-const internalToken = require('../../../backend/lib/internal_token');
+const { requireAuth } = require('../../../backend/lib/auth');
 
-function bearer(req) {
-  const raw = req.headers.authorization || req.headers.Authorization;
-  if (!raw) return null;
-  const m = /^Bearer\s+(.+)$/i.exec(String(raw).trim());
-  return m ? m[1].trim() : null;
+async function loadPracticeId(userId) {
+  const r = await db.query(
+    `select practice_id from users where id = $1 and is_active = true limit 1`,
+    [userId]
+  );
+  return r.rows[0] ? r.rows[0].practice_id : null;
 }
 
-async function loadClaim(claimId) {
-  const r = await db.query(`select * from claims where id = $1 and is_hidden = false limit 1`, [claimId]);
+// Claim scoped to the caller's practice (cross-practice / missing → null).
+async function loadClaim(practiceId, claimId) {
+  const r = await db.query(
+    `select * from claims where id = $1 and practice_id = $2 and is_hidden = false limit 1`,
+    [claimId, practiceId]
+  );
   return r.rows[0] || null;
 }
 
-async function loadClient(clientId) {
-  const r = await db.query(`select * from clients where id = $1 limit 1`, [clientId]);
+async function loadClient(practiceId, clientId) {
+  const r = await db.query(
+    `select * from clients where id = $1 and practice_id = $2 limit 1`,
+    [clientId, practiceId]
+  );
   return r.rows[0] || null;
 }
 
@@ -53,28 +60,31 @@ async function alreadyCharged(claimId) {
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  // Authenticate the internal call and bind it to the claim in the path.
-  const claimIdFromPath = req.query && req.query.id;
+  // Authenticate the staff session JWT (forwarded from the browser).
+  let auth;
   try {
-    const { claim_id } = internalToken.verify(bearer(req));
-    if (!claimIdFromPath || claim_id !== claimIdFromPath) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+    auth = requireAuth({ headers: req.headers });
   } catch (_) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
   try {
-    const claim = await loadClaim(claimIdFromPath);
+    const practiceId = await loadPracticeId(auth.user.sub);
+    if (!practiceId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const claimId = req.query && req.query.id;
+    if (!claimId) return res.status(404).json({ error: 'Not found' });
+
+    const claim = await loadClaim(practiceId, claimId);
     if (!claim) return res.status(404).json({ error: 'Not found' });
 
-    // Idempotency: never double-charge if the Lambda retries.
+    // Idempotency: never double-charge if the frontend retries.
     if (await alreadyCharged(claim.id)) {
       return res.status(200).json({ ok: true, charged: false, reason: 'already_charged' });
     }
 
-    const client = await loadClient(claim.client_id);
-    const practice = await loadPractice(claim.practice_id);
+    const client = await loadClient(practiceId, claim.client_id);
+    const practice = await loadPractice(practiceId);
     if (!client || !practice) return res.status(404).json({ error: 'Not found' });
 
     // No card on file → skip the fee silently (the claim still stands).

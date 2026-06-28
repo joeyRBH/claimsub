@@ -25,7 +25,6 @@ const { requireAuth } = require('../lib/auth');
 const { json, preflight } = require('../lib/response');
 const { parseBody } = require('../lib/util');
 const { getClearinghouse } = require('../lib/clearinghouse');
-const internalToken = require('../lib/internal_token');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -417,45 +416,6 @@ async function deleteClaim(practiceId, id, event) {
   return json(200, { deleted: true, id: res.rows[0].id }, event);
 }
 
-// Trigger the per-claim platform-fee charge after a successful submission. The
-// actual Stripe charge + transactions write happen in the Vercel function
-// /api/claims/:id/charge-fee (this Lambda is in a VPC with no Stripe egress); we
-// just make an authenticated internal POST to it. This is BEST-EFFORT: a fee
-// failure must never fail the already-submitted claim. Returns a fee_charge_error
-// string when the charge didn't go through, otherwise null.
-async function triggerFeeCharge(claim) {
-  const base = (process.env.APP_BASE_URL || '').replace(/\/+$/, '');
-  if (!base) {
-    console.error('claims submit (fee charge): APP_BASE_URL is not set');
-    return 'Fee charge skipped: APP_BASE_URL not configured.';
-  }
-
-  let token;
-  try {
-    token = internalToken.sign(claim.id);
-  } catch (err) {
-    console.error('claims submit (fee charge) token error:', err && err.message);
-    return 'Fee charge skipped.';
-  }
-
-  try {
-    const res = await fetch(`${base}/api/claims/${encodeURIComponent(claim.id)}/charge-fee`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: '{}',
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      console.error('claims submit (fee charge) http error:', res.status);
-      return (data && data.fee_charge_error) || 'Fee charge failed.';
-    }
-    return data && data.fee_charge_error ? data.fee_charge_error : null;
-  } catch (err) {
-    console.error('claims submit (fee charge) error:', err && err.message);
-    return 'Fee charge request failed.';
-  }
-}
-
 async function submitClaim(practiceId, userId, id, event) {
   if (!isUUID(id)) return json(404, { error: 'Not found' }, event);
   const claim = await loadClaim(practiceId, id);
@@ -514,13 +474,7 @@ async function submitClaim(practiceId, userId, id, event) {
   });
 
   if (!updated) return json(409, { error: 'Claim is no longer in a submittable state.' }, event);
-
-  // Trigger the platform-fee charge on Vercel (best-effort; never fails the submission).
-  const feeChargeError = await triggerFeeCharge(updated);
-
-  const responseBody = { claim: shapeClaim(updated) };
-  if (feeChargeError) responseBody.fee_charge_error = feeChargeError;
-  return json(200, responseBody, event);
+  return json(200, { claim: shapeClaim(updated) }, event);
 }
 
 async function refreshClaim(practiceId, userId, id, event) {

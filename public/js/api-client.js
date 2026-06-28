@@ -211,6 +211,30 @@
     remove: function (id) { return request('DELETE', '/sessions/' + id); },
   };
 
+  // Best-effort: after a claim is submitted, trigger the platform-fee charge on the
+  // Vercel function (which has the Stripe egress the Lambda lacks). Fire-and-forget —
+  // the claim is already submitted, so any failure is logged to the console and never
+  // surfaced to the user. Forwards the staff session JWT so the function can verify it.
+  function chargeClaimFee(id) {
+    try {
+      var token = getToken();
+      if (!token) return;
+      window.fetch(VERCEL_BASE + '/api/claims/' + id + '/charge-fee', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: '{}',
+      }).then(function (res) {
+        if (!res || !res.ok) {
+          console.warn('Platform fee charge did not complete (status ' + (res && res.status) + ').');
+        }
+      }).catch(function (e) {
+        console.warn('Platform fee charge request failed:', e && e.message);
+      });
+    } catch (e) {
+      /* never throw from a best-effort fee charge */
+    }
+  }
+
   var claims = {
     // filters: { session_id, client_id, status }
     list: function (filters) { return request('GET', '/claims' + buildQuery(filters)); },
@@ -219,7 +243,13 @@
     update: function (id, payload) { return request('PATCH', '/claims/' + id, payload); },
     remove: function (id) { return request('DELETE', '/claims/' + id); },
     // lifecycle actions
-    submit: function (id) { return request('POST', '/claims/' + id + '/submit', {}); },
+    submit: function (id) {
+      return request('POST', '/claims/' + id + '/submit', {}).then(function (res) {
+        // Best-effort platform-fee charge via Vercel; never blocks or fails the submit.
+        chargeClaimFee(id);
+        return res;
+      });
+    },
     refresh: function (id) { return request('POST', '/claims/' + id + '/refresh', {}); },
     void: function (id) { return request('POST', '/claims/' + id + '/void', {}); },
     events: function (id) { return request('GET', '/claims/' + id + '/events'); },
