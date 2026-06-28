@@ -64,11 +64,15 @@ resource "aws_lambda_function" "auth" {
     variables = {
       NODE_ENV       = "production"
       JWT_EXPIRES_IN = "12h"
-      # DATABASE_URL and JWT_SECRET are hydrated out-of-band from SSM (see README).
-      # Placeholders below let the function be created; ignore_changes preserves
-      # the hydrated values on subsequent applies.
+      # DATABASE_URL / JWT_SECRET / APP_BASE_URL are hydrated out-of-band from SSM
+      # (see README). Placeholders below let the function be created; ignore_changes
+      # preserves the hydrated values on subsequent applies.
       DATABASE_URL = "set-out-of-band-from-ssm"
       JWT_SECRET   = "set-out-of-band-from-ssm"
+
+      # The claims Lambda posts to {APP_BASE_URL}/api/claims/:id/charge-fee (Vercel)
+      # to charge the platform fee after a successful submission.
+      APP_BASE_URL = "set-out-of-band-from-ssm"
     }
   }
 

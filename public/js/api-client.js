@@ -24,6 +24,23 @@
   }
 
   var API_BASE = resolveApiBase();
+
+  // Base URL for the patient-billing endpoints, which run as Vercel functions
+  // (Stripe/Twilio need outbound internet the VPC Lambda API lacks), NOT on the
+  // Lambda API at API_BASE. Overridable via window.REDDABLY_VERCEL_BASE / a
+  // <meta name="reddably-vercel-base"> tag; defaults to the canonical app domain.
+  function resolveVercelBase() {
+    if (window.REDDABLY_VERCEL_BASE) return window.REDDABLY_VERCEL_BASE;
+    try {
+      var meta = window.document.querySelector('meta[name="reddably-vercel-base"]');
+      if (meta && meta.content) return meta.content;
+    } catch (e) {
+      /* document unavailable — fall through to default */
+    }
+    return 'https://reddably.com';
+  }
+
+  var VERCEL_BASE = resolveVercelBase();
   var TOKEN_KEY = 'reddably_access_token';
 
   // --- token storage ---------------------------------------------------------
@@ -75,7 +92,9 @@
 
   // --- core request helper ---------------------------------------------------
 
-  function request(method, path, body) {
+  // `base` defaults to the Lambda API (API_BASE); pass VERCEL_BASE for the
+  // patient-billing endpoints that run as Vercel functions.
+  function request(method, path, body, base) {
     var headers = { 'Content-Type': 'application/json' };
     var token = getToken();
     if (token) headers['Authorization'] = 'Bearer ' + token;
@@ -85,7 +104,7 @@
       opts.body = JSON.stringify(body);
     }
 
-    return window.fetch(API_BASE + path, opts).then(function (res) {
+    return window.fetch((base || API_BASE) + path, opts).then(function (res) {
       return res
         .json()
         .catch(function () {
@@ -156,15 +175,21 @@
     update: function (id, payload) { return request('PATCH', '/clients/' + id, payload); },
     remove: function (id) { return request('DELETE', '/clients/' + id); },
     // Text the client an SMS link to securely save a payment method (staff action).
-    sendPaymentLink: function (id) { return request('POST', '/clients/' + id + '/send-payment-link', {}); },
+    // Runs as a Vercel function (Twilio egress) → target VERCEL_BASE.
+    sendPaymentLink: function (id) {
+      return request('POST', '/clients/' + id + '/send-payment-link', {}, VERCEL_BASE);
+    },
   };
 
   // Patient billing (PUBLIC endpoints — used by the standalone card-capture page).
-  // These take a short-lived signed token in the body, not the staff bearer token.
+  // These take a short-lived signed token in the body, not the staff bearer token,
+  // and run as Vercel functions (Stripe egress) → target VERCEL_BASE.
   var billing = {
-    setupIntent: function (token) { return request('POST', '/setup-intent', { token: token }); },
+    setupIntent: function (token) {
+      return request('POST', '/setup-intent', { token: token }, VERCEL_BASE);
+    },
     savePaymentMethod: function (token, paymentMethodId) {
-      return request('POST', '/save-payment-method', { token: token, paymentMethodId: paymentMethodId });
+      return request('POST', '/save-payment-method', { token: token, paymentMethodId: paymentMethodId }, VERCEL_BASE);
     },
   };
 
@@ -216,6 +241,7 @@
   window.ReddablyAPI = {
     // config
     API_BASE: API_BASE,
+    VERCEL_BASE: VERCEL_BASE,
     // token helpers
     getToken: getToken,
     setToken: setToken,

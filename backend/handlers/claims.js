@@ -25,7 +25,7 @@ const { requireAuth } = require('../lib/auth');
 const { json, preflight } = require('../lib/response');
 const { parseBody } = require('../lib/util');
 const { getClearinghouse } = require('../lib/clearinghouse');
-const stripe = require('../lib/stripe');
+const internalToken = require('../lib/internal_token');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -417,77 +417,43 @@ async function deleteClaim(practiceId, id, event) {
   return json(200, { deleted: true, id: res.rows[0].id }, event);
 }
 
-// Charge the patient the per-claim platform fee after a successful submission.
-// The patient's saved Stripe PaymentMethod is charged off-session. This NEVER
-// throws: a fee failure must not roll back or fail the (already submitted) claim —
-// we record a transactions row either way and return any error string for visibility.
-// Returns a fee_charge_error string when the charge failed, otherwise null.
-async function chargePlatformFee(practiceId, claim, ctx) {
-  const client = (ctx && ctx.client) || {};
-  const practice = (ctx && ctx.practice) || {};
-
-  // No card on file → skip the fee silently (the claim still submits).
-  if (!client.payment_method_id || !client.stripe_customer_id) return null;
-
-  const percent = Number(practice.platform_fee_percent);
-  const billed = Number(claim.billed_amount);
-  if (!Number.isFinite(percent) || percent <= 0 || !Number.isFinite(billed) || billed <= 0) {
-    return null;
+// Trigger the per-claim platform-fee charge after a successful submission. The
+// actual Stripe charge + transactions write happen in the Vercel function
+// /api/claims/:id/charge-fee (this Lambda is in a VPC with no Stripe egress); we
+// just make an authenticated internal POST to it. This is BEST-EFFORT: a fee
+// failure must never fail the already-submitted claim. Returns a fee_charge_error
+// string when the charge didn't go through, otherwise null.
+async function triggerFeeCharge(claim) {
+  const base = (process.env.APP_BASE_URL || '').replace(/\/+$/, '');
+  if (!base) {
+    console.error('claims submit (fee charge): APP_BASE_URL is not set');
+    return 'Fee charge skipped: APP_BASE_URL not configured.';
   }
 
-  const feeAmountCents = Math.round(billed * (percent / 100) * 100);
-  if (feeAmountCents <= 0) return null;
-  const feeDollars = feeAmountCents / 100;
-  const description = `Platform fee (${percent}%) for claim ${claim.id}`;
-
-  let intent = null;
-  let chargeError = null;
+  let token;
   try {
-    intent = await stripe.createPaymentIntent({
-      amount: feeAmountCents,
-      currency: 'usd',
-      customer: client.stripe_customer_id,
-      payment_method: client.payment_method_id,
-      confirm: true,
-      off_session: true,
-      description: `Reddably platform fee — claim ${claim.id}`,
-      metadata: { claim_id: claim.id, client_id: client.id, practice_id: practice.id },
-    });
+    token = internalToken.sign(claim.id);
   } catch (err) {
-    chargeError = (err && err.message) || 'Fee charge failed';
-    console.error('claims submit (fee charge) error:', chargeError);
+    console.error('claims submit (fee charge) token error:', err && err.message);
+    return 'Fee charge skipped.';
   }
-
-  // latest_charge is the charge id in current API versions; fall back to the
-  // expanded charges list for older shapes. Absent → null.
-  const chargeId =
-    intent && (typeof intent.latest_charge === 'string'
-      ? intent.latest_charge
-      : (intent.charges && intent.charges.data && intent.charges.data[0] && intent.charges.data[0].id)) || null;
 
   try {
-    await db.query(
-      `insert into transactions
-         (practice_id, client_id, claim_id, type, description, amount, currency, fee_payer,
-          stripe_payment_intent_id, stripe_charge_id, status)
-       values ($1, $2, $3, 'platform_fee', $4, $5, 'usd', 'client', $6, $7, $8)`,
-      [
-        practiceId,
-        client.id,
-        claim.id,
-        description,
-        feeDollars,
-        intent ? intent.id : null,
-        chargeId,
-        chargeError ? 'failed' : 'paid',
-      ]
-    );
-  } catch (txErr) {
-    // Recording the transaction failed, but the claim is submitted — don't fail it.
-    console.error('claims submit (fee transaction insert) error:', txErr && txErr.message);
+    const res = await fetch(`${base}/api/claims/${encodeURIComponent(claim.id)}/charge-fee`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      console.error('claims submit (fee charge) http error:', res.status);
+      return (data && data.fee_charge_error) || 'Fee charge failed.';
+    }
+    return data && data.fee_charge_error ? data.fee_charge_error : null;
+  } catch (err) {
+    console.error('claims submit (fee charge) error:', err && err.message);
+    return 'Fee charge request failed.';
   }
-
-  return chargeError;
 }
 
 async function submitClaim(practiceId, userId, id, event) {
@@ -549,8 +515,8 @@ async function submitClaim(practiceId, userId, id, event) {
 
   if (!updated) return json(409, { error: 'Claim is no longer in a submittable state.' }, event);
 
-  // Charge the patient the platform fee (best-effort; never fails the submission).
-  const feeChargeError = await chargePlatformFee(practiceId, updated, ctx);
+  // Trigger the platform-fee charge on Vercel (best-effort; never fails the submission).
+  const feeChargeError = await triggerFeeCharge(updated);
 
   const responseBody = { claim: shapeClaim(updated) };
   if (feeChargeError) responseBody.fee_charge_error = feeChargeError;

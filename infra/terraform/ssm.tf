@@ -29,6 +29,14 @@ locals {
     JWT_SECRET         = "HS256 JWT signing secret the auth Lambdas read as JWT_SECRET."
     DB_MASTER_PASSWORD = "RDS master password (canonical home; read into TF_VAR at db-apply time)."
   }
+
+  # Non-secret config, still set out-of-band so no real value lands in code/tfstate.
+  # APP_BASE_URL: the claims Lambda builds the internal fee-charge URL from this
+  # (POST {APP_BASE_URL}/api/claims/:id/charge-fee → Vercel). The Stripe/Twilio
+  # secrets the billing Vercel functions need live in Vercel, NOT here.
+  ssm_string_parameters = {
+    APP_BASE_URL = "Public base URL (e.g. https://reddably.com); the claims Lambda posts to {APP_BASE_URL}/api/claims/:id/charge-fee."
+  }
 }
 
 resource "aws_ssm_parameter" "secure" {
@@ -40,6 +48,26 @@ resource "aws_ssm_parameter" "secure" {
 
   # Placeholder only - real value is set out-of-band. ignore_changes below means
   # Terraform creates this once and never reads or overwrites the live value.
+  value = "set-out-of-band-see-README"
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+
+  tags = {
+    Name = each.key
+  }
+}
+
+resource "aws_ssm_parameter" "string" {
+  for_each = local.ssm_string_parameters
+
+  name        = "${local.ssm_path_prefix}/${each.key}"
+  description = each.value
+  type        = "String"
+
+  # Placeholder only - real value is set out-of-band (same discipline as the
+  # SecureStrings above). ignore_changes means Terraform never overwrites it.
   value = "set-out-of-band-see-README"
 
   lifecycle {
