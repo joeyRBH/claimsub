@@ -119,9 +119,9 @@ body {
 }
 
 .wordmark__mark {
-  width: var(--space-7);
+  /* Two-ring mark is 10:7 (viewBox 100x70); keep aspect so the rings aren't stretched. */
   height: var(--space-7);
-  color: var(--color-primary);
+  width: calc(var(--space-7) * 10 / 7);
 }
 
 .wordmark__text {
