@@ -64,11 +64,13 @@ resource "aws_lambda_function" "auth" {
     variables = {
       NODE_ENV       = "production"
       JWT_EXPIRES_IN = "12h"
-      # DATABASE_URL and JWT_SECRET are hydrated out-of-band from SSM (see README).
-      # Placeholders below let the function be created; ignore_changes preserves
-      # the hydrated values on subsequent applies.
-      DATABASE_URL = "set-out-of-band-from-ssm"
-      JWT_SECRET   = "set-out-of-band-from-ssm"
+      # DATABASE_URL / JWT_SECRET / STEDI_API_KEY are hydrated out-of-band from SSM
+      # (see README + deploy.sh). Placeholders below let the function be created;
+      # ignore_changes preserves the hydrated values on subsequent applies.
+      # (Stripe secrets live in Vercel env — the VPC Lambdas make no Stripe calls.)
+      DATABASE_URL  = "set-out-of-band-from-ssm"
+      JWT_SECRET    = "set-out-of-band-from-ssm"
+      STEDI_API_KEY = "set-out-of-band-from-ssm"
     }
   }
 

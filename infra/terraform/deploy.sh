@@ -29,18 +29,40 @@ JWT_VAL=$("${AWS[@]}" ssm get-parameter --name "$JWT_PARAM" --with-decryption --
 case "$DB_VAL" in ""|"set-out-of-band-see-README") echo "ERROR: DATABASE_URL not set in SSM yet."; exit 1;; esac
 case "$JWT_VAL" in ""|"set-out-of-band-see-README") echo "ERROR: JWT_SECRET not set in SSM yet."; exit 1;; esac
 
+# Optional secret: hydrated only when its SSM parameter exists AND holds a real
+# value (not the placeholder). Missing/placeholder → left as-is, so a stack without
+# Stedi configured still deploys. (Stripe secrets live in Vercel env, not here.)
+fetch_optional() {
+  # $1 = parameter-name suffix (e.g. /STEDI_API_KEY)
+  local PARAM VAL
+  PARAM=$(terraform output -json ssm_secure_parameter_names | jq -r --arg s "$1" '.[] | select(endswith($s))')
+  [ -z "$PARAM" ] && { printf ''; return; }
+  VAL=$("${AWS[@]}" ssm get-parameter --name "$PARAM" --with-decryption --query 'Parameter.Value' --output text 2>/dev/null || printf '')
+  case "$VAL" in ""|"set-out-of-band-see-README"|"set-out-of-band-from-ssm") printf '';; *) printf '%s' "$VAL";; esac
+}
+
+STEDI_VAL=$(fetch_optional "/STEDI_API_KEY")
+[ -n "$STEDI_VAL" ] && echo ">> STEDI_API_KEY present in SSM; will hydrate" || echo ">> STEDI_API_KEY not set in SSM; skipping"
+
 for FN in $FUNCS; do
   "${AWS[@]}" lambda wait function-updated --function-name "$FN"
   CUR=$("${AWS[@]}" lambda get-function-configuration --function-name "$FN" --query 'Environment.Variables' --output json)
   if [ -z "$CUR" ] || [ "$CUR" = "null" ]; then CUR='{}'; fi
   CUR_DB=$(printf '%s' "$CUR" | jq -r '.DATABASE_URL // ""')
   CUR_JWT=$(printf '%s' "$CUR" | jq -r '.JWT_SECRET // ""')
-  if [ "$CUR_DB" = "$DB_VAL" ] && [ "$CUR_JWT" = "$JWT_VAL" ]; then
+  CUR_STEDI=$(printf '%s' "$CUR" | jq -r '.STEDI_API_KEY // ""')
+  if [ "$CUR_DB" = "$DB_VAL" ] && [ "$CUR_JWT" = "$JWT_VAL" ] \
+     && { [ -z "$STEDI_VAL" ] || [ "$CUR_STEDI" = "$STEDI_VAL" ]; }; then
     echo ">> $FN already hydrated, skipping"
     continue
   fi
   echo ">> hydrating $FN"
-  ENVJSON=$(printf '%s' "$CUR" | jq --arg db "$DB_VAL" --arg jwt "$JWT_VAL" '{Variables: (. + {DATABASE_URL:$db, JWT_SECRET:$jwt})}')
+  # Merge db/jwt (required) plus stedi only when we have a real value.
+  ENVJSON=$(printf '%s' "$CUR" | jq \
+    --arg db "$DB_VAL" --arg jwt "$JWT_VAL" --arg stedi "$STEDI_VAL" '
+      (. + {DATABASE_URL:$db, JWT_SECRET:$jwt})
+      | (if $stedi != "" then . + {STEDI_API_KEY:$stedi} else . end)
+      | {Variables: .}')
   TMP=$(mktemp)
   printf '%s' "$ENVJSON" > "$TMP"
   "${AWS[@]}" lambda update-function-configuration --function-name "$FN" --environment "file://$TMP" >/dev/null

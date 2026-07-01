@@ -268,6 +268,23 @@
     revoke: function (id) { return request('DELETE', '/invitations/' + id); },
   };
 
+  // Subscription / plan (Instant VOB add-on).
+  //   status()      -> { plan, vob_checks_used, vob_period_start }  (Lambda API; DB-only)
+  //   activateVob() -> { checkoutUrl }  (Vercel function; Stripe egress) — redirect there
+  var subscription = {
+    status: function () { return request('GET', '/subscription/status'); },
+    activateVob: function () {
+      return request('POST', '/subscription/vob/activate', {}, VERCEL_BASE);
+    },
+  };
+
+  // Instant VOB benefit check (gated by plan; see subscription). Runs on the
+  // Lambda API. payload: { memberId, payerId, firstName, lastName, dateOfBirth,
+  // insurance_record_id? } -> normalized benefits summary.
+  var vob = {
+    check: function (payload) { return request('POST', '/vob/check', payload); },
+  };
+
   window.ReddablyAPI = {
     // config
     API_BASE: API_BASE,
@@ -293,5 +310,7 @@
     users: users,
     invitations: invitations,
     billing: billing,
+    subscription: subscription,
+    vob: vob,
   };
 })(window);

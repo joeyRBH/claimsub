@@ -85,6 +85,21 @@ locals {
         { method = "DELETE", path = "invitations/{id}" },
       ]
     }
+    vob = {
+      handler = "handlers/vob.handler"
+      routes = [
+        { method = "POST", path = "vob/check" },
+      ]
+    }
+    subscription = {
+      handler = "handlers/subscription.handler"
+      # DB-only status route stays on the Lambda API. The Stripe-facing
+      # /subscription/vob/activate lives on Vercel (api/vob-activate.js) — the VPC
+      # Lambdas have no NAT egress to Stripe.
+      routes = [
+        { method = "GET", path = "subscription/status" },
+      ]
+    }
   }
 
   # Flatten lambda_functions into one entry per (function, route) pair, keyed by a
